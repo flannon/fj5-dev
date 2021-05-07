@@ -1,0 +1,30 @@
+# # To run the build manually do the following,
+#      $ `gcloud builds submit --config=cloudbuild.yaml .`
+#
+
+steps:
+# Step 0
+- name: 'gcr.io/cloud-builders/gcloud'
+  entrypoint: 'bash'
+  args: [ '-c', "gcloud secrets versions access latest --secret=account --format='get(payload.data)' | tr '_-' '/+' | base64 --decode > account.json" ]
+
+# Step 1
+- name: 'gcr.io/$PROJECT_ID/terraform'
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    make prep
+    terraform validate
+    make plan
+    [[ $? == 2 ]] && echo "running make apply" && make apply
+  env:
+    - TERM=xterm
+    - PROJECT_ID=${PROJECT_ID}
+    - SERVICE=${_SERVICE}
+
+substitutions:
+  _SERVICE: ${SERVICE}
+
+timeout: 1200s
+tags: ['terraform-gce']
